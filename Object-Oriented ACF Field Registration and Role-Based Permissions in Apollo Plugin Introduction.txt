@@ -1,3 +1,8 @@
+
+
+
+Object-Oriented ACF Field Registration and Role-Based Permissions in Apollo Plugin
+Introduction
 To implement advanced custom fields (ACF) and custom user roles in an Apollo Ecosystem WordPress plugin, we can leverage an object-oriented approach for registering fields and a robust system for role-based field permissions. Using a library like Vinkla’s Extended ACF (or a fork of it) allows us to define ACF field groups and fields in PHP code rather than manually in the WP admin. This has the benefit of version control and portability – fields defined in code can be easily synced across installations[1]. We will outline how to set up ACF fields (including blocks, repeaters, etc.) in code, how to create a UI for adding custom user roles with specific capabilities, and how to enforce field visibility/editing rules based on those roles.
 Setting Up OOP ACF Field Registration
 Extended ACF provides an OOP API to register ACF field groups and fields in PHP[1]. Instead of creating fields via the WP admin UI, you write PHP (in your plugin) to define field groups. For example, you might use register_extended_field_group() inside an acf/init hook to create a group:
