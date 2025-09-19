@@ -1,0 +1,160 @@
+To implement advanced custom fields (ACF) and custom user roles in an Apollo Ecosystem WordPress plugin, we can leverage an object-oriented approach for registering fields and a robust system for role-based field permissions. Using a library like Vinkla’s Extended ACF (or a fork of it) allows us to define ACF field groups and fields in PHP code rather than manually in the WP admin. This has the benefit of version control and portability – fields defined in code can be easily synced across installations[1]. We will outline how to set up ACF fields (including blocks, repeaters, etc.) in code, how to create a UI for adding custom user roles with specific capabilities, and how to enforce field visibility/editing rules based on those roles.
+Setting Up OOP ACF Field Registration
+Extended ACF provides an OOP API to register ACF field groups and fields in PHP[1]. Instead of creating fields via the WP admin UI, you write PHP (in your plugin) to define field groups. For example, you might use register_extended_field_group() inside an acf/init hook to create a group:
+use Extended\ACF\Fields\Image;
+use Extended\ACF\Fields\Text;
+use Extended\ACF\Location;
+
+add_action('acf/init', function() {
+    register_extended_field_group([
+        'title'    => 'About',
+        'fields'   => [
+            Image::make('Image'),
+            Text::make('Title'),
+        ],
+        'location' => [
+            Location::where('post_type', 'page')
+        ],
+    ]);
+});
+In this snippet, we define a group “About” with an Image and Text field, shown on pages[2]. Extended ACF comes with PHP classes for each ACF field type, so you can call static constructors like Text::make('Title', 'field_name') to create fields. Every field (except clones) has a corresponding class; if you omit a second “name” parameter, the label will be used (converted to snake_case) as the field’s name[3]. You can chain methods on these field objects to set things like ->required(), default values, placeholders, etc., corresponding to ACF field settings[4]. This approach abstracts away the unique field keys and lets you define fields in a declarative, readable style.
+Repeater and other complex fields: All ACF Pro fields are supported. For instance, a repeater field can be defined with sub-fields using the Repeater class. Example:
+use Extended\ACF\Fields\Repeater;
+use Extended\ACF\Fields\Text;
+use Extended\ACF\Fields\Image;
+
+Repeater::make('Employees')
+    ->fields([
+        Text::make('Name'),
+        Image::make('Profile Picture'),
+    ])
+    ->minRows(2)
+    ->maxRows(10)
+    ->button('Add Employee')
+    ->layout('table')
+    ->required();
+This defines a repeater Employees with sub-fields Name and Profile Picture, and sets min/max rows along with a custom “Add Employee” button label[5]. Under the hood, Extended ACF ensures each field and sub-field gets a unique key, so you don’t have to manually manage field_XXXXXXXX keys.
+Conditional logic can also be defined in code using ConditionalLogic::where() clauses instead of using field keys, which keeps logic clear and keyed to field names[6][7]. All standard ACF field settings (like wrapper, default, etc.) and advanced settings (like bidirectional() for relationship fields) are available as methods[8][9].
+Because fields are registered in code, you can track them in Git and deploy them to any number of sites. This satisfies the requirement to store and sync field definitions across installations – by using code (or exporting to JSON), your field setups are portable. In fact, Vinkla’s Extended ACF was created to allow teams to “safely rely on version control” for field configurations[1]. If desired, you can also enable ACF’s local JSON feature to auto-export field groups to JSON files; deploying those JSON files will achieve a similar sync across sites. But in our case, defining fields via PHP in the plugin itself means any site with the plugin active gets the same fields automatically.
+Implementing ACF Blocks and Advanced Field Types
+If you plan to create ACF Blocks (Gutenberg blocks defined via ACF), you have a couple of options:
+•	Using ACF’s native function: You can call acf_register_block_type() in an acf/init action to register a block in PHP. For example, to create a “Testimonial” block, you might do:
+add_action('acf/init', function() {
+    acf_register_block_type([
+        'name'            => 'testimonial',
+        'title'           => __('Testimonial'),
+        'description'     => __('A custom testimonial block.'),
+        'category'        => 'widgets',
+        'icon'            => 'admin-comments',
+        'supports'        => [ 'align' => false ],
+        'render_template' => plugin_dir_path(__FILE__).'blocks/testimonial.php',
+    ]);
+});
+This registers a new Gutenberg block type via PHP. Once registered, the block will appear as a selectable type in the editor, and it will also show up as a “Block” location choice for ACF field groups[10]. In practice, you’d create a field group (via code, as above) with location rule “Block is equal to Testimonial” and the fields you want for that block. The render_template or render_callback then uses ACF’s get_field() to output those field values in the front-end of the block[11]. (ACF suggests doing block registration inside the acf/init hook to ensure ACF is loaded[12].)
+•	Using an OOP abstraction: The community extension cloakwp/acf-abstractions (meant to complement Extended ACF) provides a Block class to simplify block registration in OOP style[13]. For example, you could do Block::make('Testimonial')...->render($callback)->fields([...]) etc., and the package handles calling acf_register_block_type internally. It also offers a BlockRegistry to access all registered blocks, and similar classes for Options Pages and Field Groups[14]. Using such an abstraction is optional but can keep your codebase consistent; since you already forked Extended ACF, you might consider integrating similar block support. Otherwise, calling acf_register_block_type() directly as shown is perfectly fine.
+For ACF Repeater fields, as shown earlier, you define them in code with sub-fields. To display repeater content on the front-end, you use ACF template functions as usual (e.g. within the block’s render template or theme: use have_rows('employees') loop, and inside it use the_sub_field('Name'), etc.). The Extended ACF registration doesn’t change how you retrieve values – it just defines them.
+Shortcodes: ACF includes a built-in shortcode ([acf field="field_name" post_id="123"]) that outputs a field’s value in post content[15]. This built-in shortcode essentially calls the_field() internally. Note, however, that as of ACF 6.3, this shortcode is disabled by default for new installs (for security reasons)[16]. You can enable it via acf_update_setting('enable_shortcode', true) on init[17]. If you prefer, you can also create a custom shortcode in your plugin for more control – for example, add_shortcode('my_field', function($atts){ ... return get_field($atts['name']); }). This might be useful if you want to implement dynamic behavior or additional formatting. But if enabling the core ACF shortcode, usage is straightforward: e.g., [acf field="new_acf_item"] in a post would display the value of our “New ACF Item” field, assuming the field is available in that context.
+Using get_field() in code: In PHP templates or callbacks, get_field('field_name', $post_id) is the primary function to retrieve ACF values. It’s very flexible – you can fetch fields from different objects by adjusting the $post_id parameter (it can be a post ID, a 'user_{$id}' string for user meta, a 'term_{$id}' for term meta, or 'option' for options pages)[18]. The function will return the field value in the appropriate type (string, array, etc., depending on field type)[19]. One important best practice: always sanitize or escape values when outputting. For example:
+$value = get_field('text_field');
+if ($value) {
+    echo wp_kses_post($value);  // safely output a text field
+} else {
+    echo 'N/A';
+}
+ACF’s documentation emphasizes using WordPress escaping functions when printing values to prevent any malicious content from being output[20][21]. In summary, use get_field() (or the_field() for direct output) to retrieve ACF data, and wrap the output in appropriate escaping (e.g. esc_url for URLs, esc_html for plain text, or wp_kses_post for rich text).
+Creating Custom User Roles via the Plugin
+You also need a form in the WP Admin to create a new user role with specific capabilities. This can be implemented as a sub-page under your Apollo Ecosystem plugin menu (e.g., “Register User Role”). When the admin fills this form (supplying a role name and choosing capabilities), your plugin should call WordPress’s add_role() function to actually register the role. For example:
+// Pseudocode for processing the form submission
+$role_id = sanitize_key($_POST['role_id']);        // machine name, e.g. 'custom_editor'
+$role_name = sanitize_text_field($_POST['role_name']);  // human name, e.g. 'Custom Editor'
+$caps = [ /* ... based on form checkboxes ... */ ];
+
+if (get_role($role_id)) {
+    // Role exists, perhaps show a message that it already exists
+} else {
+    add_role($role_id, $role_name, $caps);
+}
+The form should include a list of capabilities (you might present a checklist of common caps like read, edit_posts, publish_posts, etc., or even allow cloning an existing role’s caps). Once the user submits, you sanitize inputs and use add_role. The add_role call should ideally run once (hence the check if (!get_role()) to avoid duplicates). This logic can be executed on form submission or during plugin activation (for predefined roles). In your earlier code sample, for instance, you added a role “Custom Editor” on init if it didn’t exist【user code】. Wrapping it in a form just makes it dynamic.
+To verify roles or list existing ones in the UI, you can utilize the WP_Roles API. WordPress stores roles globally in $wp_roles. You can do:
+global $wp_roles;
+$all_roles = $wp_roles->get_names();
+This returns an associative array of role slugs to role display names[22] (e.g. ['administrator' => 'Administrator', 'editor' => 'Editor', ...]). You can iterate this to display current roles or populate a dropdown, etc. The WP_Roles::get_names() method simply retrieves the internal list of role names[23]. Using this, your “Register User Role” page could even warn if the role ID someone is trying to create already exists.
+Storing role definitions: Since the plugin might be used on multiple sites, consider how to persist any custom roles. If roles are only added via code (like an add_role call on plugin load), that code will run on each site (ensuring the role exists). If you allow adding roles via an admin form, you might store the new role’s info in your plugin options or a custom table so that it can be recreated on plugin activation in another site. A simpler approach: if you anticipate re-using the same custom roles on all installations, just code them (e.g., always add “Custom Editor” role on init). But if roles are truly user-defined per site, then you don’t need cross-site sync for roles – just let each site admin create the roles as needed via the form. (The form approach is site-specific by nature, unless you export those settings.)
+Role-Based Field Permissions (Conditional Field Display)
+Now comes the conditional logic A→B→C mentioned, which relates to showing or hiding fields based on role and context. ACF doesn’t natively restrict individual fields by user role, but we can enforce it with filters. The key is the acf/prepare_field filter, which lets us modify a field’s settings right before render (or return false to omit it entirely).
+Strategy: Maintain a mapping of field permissions for each role. In your example code, you had an array $field_permissions where each field name (like 'new_acf_item') maps to role permissions ('full', 'read', 'hide'). We can adopt that approach. For each field we want to protect, list the roles and what level of access they have. For instance:
+$field_permissions = [
+  'new_acf_item' => [
+    'administrator' => 'full',
+    'editor'        => 'full',
+    'author'        => 'read',
+    'subscriber'    => 'hide',
+    // etc...
+  ],
+  // ... other fields
+];
+Then use a filter:
+add_filter('acf/prepare_field', function($field) use ($field_permissions) {
+    $name = $field['name'];
+    if (!isset($field_permissions[$name])) {
+        return $field; // no special restrictions for this field
+    }
+    $perms = $field_permissions[$name];
+    $user = wp_get_current_user();
+    $roles = (array) $user->roles;
+    $allowed = 'hide';
+    foreach ($roles as $role) {
+        if (isset($perms[$role])) {
+            $allowed = $perms[$role];
+            break;
+        }
+    }
+    if ($allowed === 'hide') {
+        return false;              // do not render field at all
+    } elseif ($allowed === 'read') {
+        $field['disabled'] = true; // render but make read-only
+    }
+    return $field; // 'full' access falls through to here with field intact
+});
+This is essentially what your provided code does. The effect is: an Administrator or Editor sees and can edit the field normally, an Author sees it but cannot modify (input is disabled), and a Subscriber doesn’t see the field at all【user code】. The use of return false on the filter cleanly prevents the field from rendering in the edit form – this is an officially recommended approach in ACF 5+ for hiding fields based on conditions[24]. In fact, ACF’s documentation notes that returning false in acf/prepare_field will exclude the field from the form output entirely[25]. Older workarounds involved CSS or JavaScript to hide fields, but this server-side method is much more robust.
+A few implementation details to consider: - If a user has multiple roles, our code checks roles in order and uses the first match. Depending on your needs, you might want to decide whether the “highest” role or the “most restrictive” rule wins. In the above example, we break on the first role found in the permissions map. That implies an Author who is also a Subscriber would get Author’s 'read' access (since we’d encounter 'author' first). You could instead prioritize by permission level explicitly if needed. - You should apply this filter for all fields that need role control. In our approach, we mapped by field name. Alternatively, you can target by field key or group key if you prefer (e.g., using acf/prepare_field/key=field_ABC123 in the filter name to limit scope). Using the name is human-readable but ensure it’s unique across all field groups to avoid confusion. - This permission logic runs on the back-end edit screens. It will hide/lock fields in wp-admin. If you have front-end forms (via acf_form()), the same filter would apply there as well (since it runs on field render globally).
+ACF Conditional Logic UI (A → B → C): The question’s structure suggests a UI flow: perhaps (A) selecting a code template or field type, then (B) selecting a post type context, then (C) optionally a taxonomy or meta condition, and finally presenting a table of roles vs. permissions. This sounds like a guided form to create a new field with conditions: - (A) Select code template – maybe choose from predefined field templates or types (e.g., “Text field” vs “Repeater” vs “ACF Block”), or whether the new field group is defined in code or via GUI. - (B) Choose post type (or other location) – e.g., is this field for a specific post type? If yes, select which post type. If not, maybe it’s for a taxonomy or an options page. - (C) If taxonomy/term is true – possibly an additional condition: e.g., if attaching to a taxonomy term or a specific template. If selected, specify which taxonomy or term.
+After those steps, the UI would show a matrix of all current user roles and allow the admin to set that field’s permissions (full/read/hidden for each role). This data (the roles and their permissions for the new field) would then feed into the $field_permissions config as shown above.
+Whether this interface is part of the Apollo plugin or separate, the consensus is to integrate it into the Apollo Ecosystem plugin for cohesion. You can create a sub-page like “Register ACF Field” under the Apollo menu. Given that the plugin already has an admin menu, adding a submenu for field registration and another for role creation keeps related functionality together. This avoids the complexity of multiple plugins and ensures the conditional logic ties in directly with the Apollo plugin’s roles and fields. (In short, yes, build it as part of the existing plugin, with its own admin screens, rather than a separate plugin.)
+Data Persistence and Sync Across Sites
+Finally, ensure that both the role definitions and field definitions are portable or at least recreatable on other sites: - For field definitions, as discussed, using code (Extended ACF) means any site running the plugin will register those fields on load. If the plugin allows creating new fields via the WP admin interface (e.g., generating PHP code or storing JSON), you should implement an export/import or auto-sync. One approach is to write the new field definition to the acf-json folder (ACF will load JSON-defined fields automatically). Another is to programmatically generate PHP (not trivial) or require the admin to copy some code. ACF’s local JSON is a convenient way to sync field groups across environments[26]. Since you answered “Yes” to syncing across installations, leveraging JSON or including the field code in the plugin (and updating it as fields are added) will be key. - For user roles, if your plugin defines some default roles (like the Custom Editor example), keep those in the plugin code so they’re created on each site. For roles added via the form, you might simply call add_role on that site – other sites won’t automatically get it. If having identical roles on all installations is important, you could store those role definitions in an option and provide an export/import mechanism. However, it might not be necessary unless this is a multi-site scenario. Usually roles are somewhat site-specific unless you’re distributing a product with known roles.
+In summary, storing settings as code or JSON ensures consistency. Extended ACF’s philosophy is to treat field definitions as code (in the theme/plugin) so they can be source-controlled and deployed[1]. We follow that by keeping our role creation and field registration in the Apollo plugin codebase. When the plugin is installed on a new WordPress site, it checks for the custom roles (creating them if missing) and registers all ACF field groups. This way, the “ecosystem” is reproducible anywhere.
+Conclusion
+By using an object-oriented PHP approach to register ACF fields, we achieve a maintainable and portable configuration for custom fields (including support for ACF Blocks, repeaters, etc.). We integrated a UI in the Apollo Ecosystem plugin for administrators to create new user roles with chosen capabilities, and we enforce fine-grained field access control based on those roles. The acf/prepare_field filter allows us to hide or lock fields for certain roles at runtime, effectively implementing the conditional logic you described (A→B→C). All of these features are built into the existing Apollo plugin as submenu pages (e.g., “Register User Role” and perhaps “Register ACF Field”), keeping the ecosystem self-contained.
+With this setup, when the Apollo plugin is activated on another WordPress site, it will recognize if a custom role already exists (preventing duplicates) and ensure all ACF field groups are registered as defined. Field definitions can be synchronized via code or JSON exports, so whatever custom fields and blocks you’ve configured will consistently be available across environments. This provides a powerful and scalable way to manage custom fields and permissions:
+•	ACF Fields in Code: Defined once, version-controlled, no manual syncing issues[1]. Supports all field types (text, repeater[5], etc.) via OOP classes.
+•	ACF Blocks: Registered in PHP (via acf_register_block_type) so that fields attach to them and use get_field() in block templates[10]. Optional OOP wrappers can simplify this[27].
+•	User Roles: Creatable through the plugin UI, stored persistently. On plugin re-run, code checks get_role to avoid re-adding existing roles.
+•	Field Access by Role: Implemented with backend filters to hide or disable fields for certain roles, using acf/prepare_field (return false to hide) as recommended in ACF’s docs[24].
+By following these practices, you ensure that each “little register of code” (each ACF field or group) is not only saved as text (code or JSON) but also enforced in the backend with the desired capabilities and permissions for all user roles. This cohesive approach within the Apollo Ecosystem plugin will make your custom fields and roles system robust and easy to maintain.
+Sources:
+•	Vinkla’s Extended ACF – “Register advanced custom fields with object-oriented PHP.” (Usage and examples of defining field groups in code)[1][2]
+•	Extended ACF Documentation – All field types have corresponding classes for OOP registration[3], e.g. Repeater field usage[5].
+•	CloakWP ACF Abstractions – OOP extensions for ACF Blocks, Options Pages, etc., built on Extended ACF[13].
+•	ACF Official Docs – Using acf_register_block_type() to register Gutenberg blocks in PHP (with acf/init hook and rendering via template using get_field())[10].
+•	ACF Shortcode Reference – Built-in [acf] shortcode usage (disabled by default in ACF 6.3+, can be enabled)[15][16].
+•	ACF get_field() Reference – Retrieving field values in code and importance of escaping output[19][21].
+•	WordPress Roles API – Example of retrieving all role names via $wp_roles->get_names()[22].
+•	Stack Overflow – How to hide or disable ACF fields for certain roles using acf/prepare_field filter (return false to hide field for non-admins)[24].
+________________________________________
+[1] [2] [3] [4] [5] [6] [7] [8] [9] GitHub - vinkla/extended-acf: Register advanced custom fields with object-oriented PHP
+https://github.com/vinkla/extended-acf
+[10] [11] [12] ACF | acf_register_block_type()
+https://www.advancedcustomfields.com/resources/acf_register_block_type/
+[13] [14] [27] cloakwp/acf-abstractions - Packagist
+https://packagist.org/packages/cloakwp/acf-abstractions
+[15] [16] [17] [26] ACF | Shortcode
+https://www.advancedcustomfields.com/resources/shortcode/
+[18] [19] [20] [21] ACF | get_field()
+https://www.advancedcustomfields.com/resources/get_field/
+[22] wordpress list user roles - Stack Overflow
+https://stackoverflow.com/questions/13162330/wordpress-list-user-roles
+[23] WP_Roles::get_names() – Method | Developer.WordPress.org
+https://developer.wordpress.org/reference/classes/wp_roles/get_names/
+[24] [25] php - Hide certain Advanced Custom Fields from non admins - Stack Overflow
+https://stackoverflow.com/questions/37111468/hide-certain-advanced-custom-fields-from-non-admins
