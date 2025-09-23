@@ -50,3 +50,257 @@ Critical success factors include implementing proper namespacing protocols, upda
 Cost-benefit analysis demonstrates significant returns on investment through reduced development time, improved code quality, enhanced security posture, and decreased maintenance overhead. Professional development teams utilizing comprehensive tooling approaches achieve 3-5 hour daily savings while maintaining higher quality standards and security compliance.
 The evolving WordPress ecosystem requires continuous adaptation to new core features, security requirements, and development methodologies. Success depends on systematic implementation of proven practices, comprehensive testing coverage, and strategic adoption of AI-assisted development tools aligned with project complexity and organizational requirements.
 
+Relatório Técnico: Defesa Estratégica Contra Falhas e Vazamentos de Dados em Sites WordPress
+
+
+1. Introdução: O Cenário de Ameaças e a Responsabilidade Proativa
+
+
+1.1. WordPress como Alvo Estratégico
+
+A popularidade massiva do WordPress, que atualmente impulsiona uma parcela significativa da internet, o posiciona como um alvo preferencial para ataques cibernéticos, tanto automatizados quanto direcionados.1 A vastidão de seu ecossistema, composto por dezenas de milhares de temas e plugins, é o principal vetor de risco. As vulnerabilidades raramente se originam no núcleo do WordPress, que é rigorosamente mantido pela comunidade. Em vez disso, a maioria das brechas de segurança exploradas por atacantes provém de falhas de implementação e manutenção no vasto universo de componentes de terceiros.3
+A segurança, neste contexto, não se trata de proteger uma plataforma inerentemente vulnerável, mas sim de cultivar uma cultura de segurança proativa. A negligência em manter o software atualizado, o uso de credenciais fracas ou a instalação de plugins inativos e não confiáveis representam as "portas abertas" mais comuns para invasores. A responsabilidade por mitigar esses riscos recai diretamente sobre os desenvolvedores e administradores, que devem adotar práticas de desenvolvimento consciente e manutenção contínua para proteger a integridade dos dados e a confiabilidade de suas plataformas.2
+
+1.2. A Natureza Multifacetada dos Vazamentos de Dados
+
+Um vazamento de dados, em sua definição mais direta, ocorre quando informações sensíveis são expostas ou acessadas de forma indevida, geralmente por falhas de segurança, configuração inadequada de plugins ou a falta de atualizações de software.6 Esses eventos podem ter consequências diretas e indiretas de grande impacto, que vão muito além da simples exposição de informações.
+As consequências imediatas incluem o roubo de dados de usuários, como credenciais de login e informações pessoais, a exfiltração de dados financeiros em plataformas de e-commerce e a exposição de chaves criptográficas ou outros segredos.1 Além disso, a reputação da marca pode ser gravemente danificada, levando a uma perda de confiança por parte dos usuários e a penalizações por parte de mecanismos de busca. Indiretamente, um ataque pode manifestar-se como problemas de desempenho, como o aumento do tempo de carregamento de páginas ou o alto consumo de CPU na hospedagem, que são frequentemente sintomas de scripts maliciosos ou
+memory leaks (vazamentos de memória) atuando em segundo plano.6 O monitoramento atento desses sinais sutis pode ser crucial para a detecção precoce de um comprometimento.
+
+2. Vulnerabilidades Comuns: Identificando os Vetores de Ataque
+
+
+2.1. O Ecossistema Desatualizado: Um Convite Aberto a Ameaças
+
+O software desatualizado é o vetor de ataque mais prevalente e facilmente evitável em sites WordPress.2 Cada atualização de segurança, seja do núcleo do WordPress, de um tema ou de um plugin, representa a correção de uma falha de segurança conhecida e publicamente documentada.8 Atacantes, por meio de ferramentas automatizadas, escaneiam a web incessantemente em busca de instalações que executam versões antigas e vulneráveis de software. Ignorar essas atualizações é, na prática, deixar uma porta aberta para a exploração.
+Para mitigar esse risco, a prática recomendada é manter o núcleo do WordPress, todos os temas e plugins sempre atualizados.2 As atualizações automáticas para versões menores do WordPress podem ser ativadas para reduzir a janela de exposição, garantindo que patches críticos sejam aplicados rapidamente.4 Além disso, a remoção completa de temas e plugins inativos ou não utilizados é uma medida de segurança fundamental.2 Mesmo desativados, os arquivos desses componentes permanecem no servidor e podem conter vulnerabilidades exploráveis, servindo como "portas dos fundos" para invasores.
+
+2.2. Injeção de Código e Dados: Quando a Entrada se Torna uma Ameaça
+
+A injeção de código ou dados é uma classe de ataque em que dados hostis são inseridos em linguagens de comando ou consulta.1 Ocorre quando um aplicativo web utiliza a entrada do usuário sem a devida validação ou saneamento. Duas das formas mais comuns de injeção são a Injeção de SQL e o Cross-Site Scripting.
+
+Injeção de SQL (SQLi)
+
+Um ataque de Injeção de SQL (SQLi) ocorre quando um invasor insere comandos SQL maliciosos em um campo de entrada de formulário. Se a aplicação não tratar a entrada de forma segura, o comando malicioso é executado no banco de dados.2 Esse tipo de ataque pode levar ao roubo de dados sensíveis, como nomes de usuário e senhas, ou até mesmo à manipulação, modificação ou exclusão de registros do banco de dados.2 A principal linha de defesa é o uso de
+Prepared Statements e a função nativa $wpdb->prepare(), que sanitiza as variáveis de entrada e as injeta na consulta de forma segura por meio de placeholders (%s, %d), em vez de simplesmente concatenar strings.11
+
+Cross-Site Scripting (XSS)
+
+O Cross-Site Scripting (XSS) é um ataque onde scripts maliciosos, geralmente em JavaScript, são injetados em um site confiável e executados no navegador de um usuário final.12 As vulnerabilidades de XSS são comuns em campos que aceitam entrada de usuário, como formulários de comentários, campos de busca e formulários de contato, onde os dados não são devidamente sanitizados antes de serem exibidos.2 Um ataque XSS bem-sucedido pode levar ao roubo de credenciais de login, cookies de sessão e dados pessoais.7
+Existem três tipos principais de XSS, cada um com um mecanismo de ataque distinto:
+XSS Persistente (Stored XSS): O script malicioso é permanentemente armazenado no banco de dados do site.7 Quando um usuário visita a página afetada, o script é executado em seu navegador sem seu conhecimento, expondo-o ao ataque. Este é considerado o tipo mais perigoso, pois afeta todos os visitantes da página.
+XSS Refletido (Reflected XSS): O script malicioso é incluído em uma URL e é "refletido" de volta ao usuário pelo servidor na resposta da página.7 O ataque não é armazenado no servidor e afeta apenas usuários que clicam em links maliciosos, frequentemente enviados por e-mail ou outras táticas de engenharia social.
+XSS Baseado em DOM (DOM-based XSS): A vulnerabilidade reside no código JavaScript do lado do cliente, onde o script manipula a página dinamicamente sem a necessidade de uma nova requisição ao servidor.7 É mais difícil de detectar, pois não envolve uma interação direta do servidor.
+O impacto de um ataque XSS contra um administrador é particularmente severo, pois o script pode executar comandos de nível administrativo, levando ao roubo de credenciais, instalação de backdoors ou até mesmo a uma tomada completa do site.7
+
+2.3. Falhas de Autenticação e Controle de Acesso
+
+
+Ataques de Força Bruta e Credenciais Fracas
+
+Ataques de força bruta envolvem tentativas automatizadas de adivinhar senhas, frequentemente usando listas de credenciais comuns.2 O uso de nomes de usuário padrão como "admin" ou "administrator" e senhas fracas ou reutilizadas facilita enormemente esses ataques.3 A mitigação passa pela imposição de senhas fortes e únicas, com pelo menos 12 caracteres e uma mistura de letras maiúsculas, minúsculas, números e caracteres especiais.3 A ativação da autenticação de dois fatores (2FA) adiciona uma camada de segurança essencial, garantindo que mesmo que uma senha seja comprometida, o acesso não autorizado seja impedido.2 A limitação do número de tentativas de login também é uma estratégia eficaz para deter bots automatizados.2
+
+Cross-Site Request Forgery (CSRF)
+
+O ataque CSRF ocorre quando um atacante consegue forjar uma requisição web e engana um usuário autenticado para que ele a execute sem seu conhecimento.2 O site, ao receber a requisição, a trata como legítima porque ela foi enviada a partir da sessão de um usuário autenticado. A principal contramedida nativa do WordPress é a utilização de
+nonces (numbers used once). Um nonce é um token único e efêmero que garante a validade da requisição em um contexto específico e impede que ela seja forjada.10 A verificação do
+nonce é um passo crítico em todas as ações que modificam dados.
+
+Broken Access Control (Controle de Acesso Quebrado)
+
+Falhas de controle de acesso ocorrem quando as verificações de autenticação ou autorização de um usuário são inadequadas, permitindo que ele execute ações ou acesse dados para os quais não tem permissão.11 A prevenção desse tipo de vulnerabilidade está diretamente ligada à implementação do Princípio do Menor Privilégio, onde cada usuário recebe apenas as permissões estritamente necessárias para realizar suas tarefas.15 No desenvolvimento de plugins e temas, a verificação de permissões deve ser rigorosa, utilizando funções como
+current_user_can() para garantir que o usuário possui a capacidade necessária antes de executar qualquer ação sensível, especialmente em endpoints da API REST.14
+
+3. Proteção de Dados: O Ciclo de Vida da Informação e a Regra de Ouro
+
+
+3.1. A Regra Fundamental: "Nunca Confie na Entrada do Usuário"
+
+A segurança de dados no WordPress começa com um princípio fundamental: nunca se deve confiar em dados provenientes de fontes externas, incluindo formulários, URLs, APIs e, crucialmente, até mesmo o próprio banco de dados.18 A falha de segurança não é um evento isolado, mas sim uma quebra na "cadeia de confiança" dos dados. A premissa de que os dados recuperados do banco de dados já foram "limpos" é perigosa, pois se um vetor de ataque anterior, como uma injeção, comprometeu o banco de dados, dados maliciosos podem ser lidos e exibidos, perpetuando um ataque de XSS persistente.
+Para mitigar esse risco, o ciclo de vida dos dados deve seguir uma regra de ouro: "Validar Cedo, Escapar Tarde" (Validate Early, Escape Late).18 A validação e o saneamento devem ser realizados assim que a entrada é recebida, enquanto o escapamento deve ser a última etapa, executada apenas antes que os dados sejam exibidos na tela do usuário.
+
+3.2. As Três Etapas da Higiene de Dados
+
+A higienização de dados é um processo em três etapas que garante que as informações sejam seguras em todos os pontos de seu ciclo de vida.
+
+Validação (Validation)
+
+A validação é a abordagem mais rigorosa e consiste em garantir que os dados submetidos por um usuário correspondam exatamente ao formato esperado, rejeitando qualquer outra coisa.20 Por exemplo, para um campo de CEP, a validação deve assegurar que a entrada seja um número com um número específico de caracteres. O WordPress oferece funções como
+absint(), que converte um valor para um inteiro não negativo, e is_email(), que verifica o formato de um endereço de e-mail.
+
+Saneamento (Sanitization)
+
+O saneamento é uma abordagem mais flexível que a validação, ideal quando a entrada pode variar, mas ainda precisa ser "limpa" para remover caracteres ou código malicioso.20 É o processo de filtrar a entrada do usuário para torná-la segura para o armazenamento no banco de dados. A função
+sanitize_text_field(), por exemplo, é amplamente utilizada para remover tags HTML, caracteres inválidos e espaços extras de uma string de texto.20
+
+Escapamento (Escaping)
+
+O escapamento é a etapa final e crucial. Consiste em converter caracteres especiais, como < e >, em entidades HTML (e.g., <, >) para evitar que scripts maliciosos sejam executados quando os dados são exibidos.10 É a principal defesa contra ataques de XSS e deve ser aplicado em todos os dados que serão renderizados no frontend ou no painel de administração. O WordPress oferece uma série de funções nativas para diferentes contextos de saída, como
+esc_html(), esc_attr() e esc_url().20 Para dados que precisam reter algumas tags HTML, a função
+wp_kses() permite um controle granular de quais tags e atributos são permitidos.20 A prática profissional é adicionar sufixos como
+_escaped ou _safe às variáveis que já foram escapadas, tornando o código mais robusto e claro para outros desenvolvedores.
+A Tabela 1 a seguir consolida as principais funções de higiene de dados do WordPress, servindo como uma referência prática para desenvolvedores.
+Função
+Descrição
+Tipo
+Contexto de Uso
+absint()
+Converte um valor para um inteiro não negativo.
+Validação
+Entrada (Input)
+is_email()
+Verifica se a string é um endereço de e-mail válido.
+Validação
+Entrada (Input)
+sanitize_text_field()
+Remove tags, converte caracteres inválidos e espaços extras.
+Saneamento
+Entrada (Input)
+sanitize_email()
+Remove caracteres inválidos para um e-mail.
+Saneamento
+Entrada (Input)
+esc_html()
+Escapa todo o HTML, convertendo < e > em entidades.
+Escapamento
+Saída (Output) em HTML
+esc_attr()
+Escapa valores para uso em atributos de tags HTML.
+Escapamento
+Saída (Output) em atributos
+esc_url()
+Sanitiza URLs para uso em atributos como href ou src.
+Escapamento
+Saída (Output) em URLs
+wp_kses()
+Permite um conjunto definido de tags e atributos HTML seguros.
+Escapamento
+Saída (Output) que permite HTML limitado
+
+
+4. Desenvolvimento Seguro para Plugins e Temas
+
+
+4.1. Gerenciamento de Segredos e Chaves de API
+
+Um dos erros de segurança mais comuns é o armazenamento de segredos, como chaves de API ou chaves criptográficas, diretamente no código-fonte, como no arquivo wp-config.php.22 Embora essa prática seja comum, ela dificulta a escalabilidade e, mais perigosamente, expõe informações sensíveis em sistemas de controle de versão como o Git, onde chaves podem ser inadvertidamente enviadas para repositórios públicos.22
+A abordagem recomendada é o uso de variáveis de ambiente ou, idealmente, de gerenciadores de segredos dedicados.23 Plataformas de hospedagem modernas, como a Pantheon, oferecem funções nativas para o gerenciamento seguro de chaves, como
+pantheon_get_secret(), que permite que os desenvolvedores recuperem segredos sem expô-los no código.22 Além disso, a rotação regular de chaves e o princípio do menor privilégio para acessos de API são práticas essenciais para limitar a exposição em caso de comprometimento de uma chave.23
+
+4.2. Controle de Acesso e Exibição de Dados
+
+A segurança de dados se estende tanto ao frontend quanto ao painel de administração. Em ambas as interfaces, todos os dados provenientes de fontes não confiáveis devem ser devidamente escapados antes da exibição para prevenir ataques XSS.18 O painel de administração merece atenção redobrada, pois um ataque bem-sucedido pode comprometer o controle do site.
+Para garantir que a lógica do negócio seja protegida, o controle de acesso em nível de código é crucial. Para endpoints de API REST, o uso de permission_callback é mandatório. Esta função, configurada ao registrar a rota, deve verificar a capacidade do usuário via current_user_can() antes de executar a lógica principal do endpoint.14 Essa abordagem garante que apenas usuários com as permissões corretas possam interagir com a funcionalidade, impedindo acessos não autorizados mesmo em caso de falhas de segurança em outras camadas.
+
+4.3. O Risco de Funções Críticas: A Armadilha de $wp_set_current_user()
+
+A função wp_set_current_user() é uma ferramenta poderosa no WordPress, projetada para alterar a variável global $current_user para simular ações de outro usuário.24 No entanto, seu uso indevido pode levar a graves vulnerabilidades. É crucial entender que esta função
+não autentica nem autoriza o usuário; ela simplesmente redefine o objeto global.24
+Se a lógica que precede a chamada a wp_set_current_user() for falha, um atacante pode, teoricamente, explorar essa vulnerabilidade para temporariamente se tornar um administrador e executar comandos críticos, resultando em uma escalada de privilégios. Essa função, embora útil em cenários controlados, representa um risco de segurança se chamada a partir de um contexto inseguro ou com dados de entrada não validados. O desenvolvimento seguro exige uma consciência profunda sobre o funcionamento de funções críticas e uma rigorosa verificação de permissões e contexto antes de sua utilização.
+
+5. Aprofundamento Técnico: Segurança em HMAC SHA-256 e JWT
+
+Para um plugin que utiliza as tecnologias HMAC SHA-256 e JWT, uma compreensão aprofundada dos riscos de implementação é essencial para garantir a segurança dos dados.
+
+5.1. Entendendo as Tecnologias
+
+A arquitetura de autenticação em questão utiliza JSON Web Tokens (JWTs) para gerenciar sessões e HMAC SHA-256 para garantir a integridade e autenticidade desses tokens. O JWT é um formato de token compacto e autossuficiente que permite a transmissão segura de informações entre partes como um objeto JSON. Ele consiste em três partes: o cabeçalho (Header), a carga útil (Payload) e a assinatura (Signature).25
+A assinatura é o componente que garante a segurança do token. Ela é criada combinando o cabeçalho e a carga útil com uma chave secreta, usando um algoritmo criptográfico. Neste caso, o algoritmo é o HMAC SHA-256.26 O HMAC (Hash-based Message Authentication Code) é um tipo de criptografia simétrica que usa uma única chave secreta compartilhada para assinar e verificar a integridade de uma mensagem. Se qualquer parte do token for alterada, a assinatura não corresponderá, indicando adulteração.25
+
+5.2. Desafios de Implementação e Soluções Proativas
+
+A segurança de uma implementação de JWT não está apenas na força do algoritmo, mas na forma como ele é aplicado.
+
+O Ataque de Confusão de Algoritmo
+
+Este é um ataque crítico que explora a confiança ingênua do servidor no cabeçalho do JWT. Um atacante pode obter uma chave pública de um sistema de criptografia assimétrica (como RSA), alterar o campo alg do cabeçalho do JWT para "HS256" e assinar um token adulterado usando a chave pública. Se o servidor ingênuo ler o campo alg e usar a chave pública como uma chave secreta HMAC para a verificação, o token falso será validado com sucesso.26
+A prevenção crucial contra este ataque é nunca confiar no campo alg. O código de verificação do servidor deve ter o algoritmo esperado (neste caso, "HS256") fixo e usar a chave secreta correta para a verificação, ignorando completamente o valor fornecido pelo token.26
+
+Gerenciamento do Ciclo de Vida do Token
+
+Tokens de acesso devem ter um tempo de vida relativamente curto para limitar a janela de exposição em caso de roubo.27 Para manter a usabilidade, a implementação deve contar com um sistema de
+refresh tokens. O refresh token permite que o cliente obtenha um novo token de acesso de vida curta sem precisar autenticar-se novamente.29 A validação do
+refresh token deve ocorrer no lado do servidor, o que possibilita a revogação instantânea de sessões em caso de comprometimento.28
+
+Armazenamento Seguro da Chave Secreta
+
+A chave secreta usada para o HMAC SHA-256 é o ponto mais vulnerável do sistema. Se ela for exposta (e.g., em um repositório público de código), qualquer atacante poderá forjar tokens válidos. Para proteger a chave, ela deve ser armazenada fora do código-fonte.22 Variáveis de ambiente, gerenciadores de segredos ou arquivos em caminhos privados do servidor são as abordagens recomendadas para garantir que a chave permaneça confidencial.22
+A Tabela 2 a seguir resume as práticas de segurança mais importantes para uma implementação robusta de JWT com HMAC-SHA256.
+Prática
+Descrição
+Risco Mitigado
+Não Confiar no Header alg
+O servidor deve ter o algoritmo de assinatura esperado fixo e ignorar o valor fornecido pelo JWT.
+Ataque de Confusão de Algoritmo
+Validade Curta
+Definir um tempo de expiração curto para os tokens de acesso.
+Limita a janela de exposição em caso de roubo de token.
+Uso de Refresh Tokens
+Utilizar refresh tokens para renovar a sessão, permitindo que os access tokens sejam de vida curta.
+Aumenta a usabilidade e a segurança.
+Armazenamento Seguro da Chave Secreta
+Armazenar a chave em variáveis de ambiente ou gerenciadores de segredos, nunca no código-fonte.
+Previne a falsificação de tokens.
+Revogação de Tokens
+Implementar um mecanismo para revogar sessões comprometidas antes da expiração do token.
+Evita o uso continuado de tokens roubados.
+Uso de HTTPS
+Enviar e receber todos os tokens apenas por meio de uma conexão segura (HTTPS).
+Impede ataques man-in-the-middle (MITM) e a interceptação de tokens.
+
+
+6. Estratégias de Manutenção e Vigilância Contínua
+
+
+6.1. Monitoramento e Detecção
+
+A segurança não é um evento único, mas um processo contínuo de vigilância. O monitoramento de logs de atividade, especialmente para contas de usuários privilegiados, é crucial para detectar comportamentos anômalos.2 Ferramentas de segurança podem escanear regularmente o site em busca de malware e detectar alterações não autorizadas em arquivos críticos, que são indicadores de comprometimento.8
+
+6.2. Infraestrutura e Hardening do Servidor
+
+O endurecimento do servidor (server hardening) envolve a aplicação de medidas de segurança na camada de infraestrutura para fechar potenciais backdoors. Recomenda-se desabilitar a edição de arquivos via painel de administração (wp-config.php), o que impede que atacantes com acesso restrito modifiquem o código do site.8 As permissões de arquivos e diretórios devem ser definidas corretamente (
+644 para arquivos, 755 para diretórios) e o acesso a arquivos sensíveis como wp-config.php deve ser estritamente restrito (600).3 Além disso, a listagem de diretórios deve ser desabilitada para evitar a exposição de informações sobre a estrutura de arquivos e plugins.5 Por fim, o uso de HTTPS com certificados SSL/TLS é indispensável para criptografar a comunicação entre o site e os usuários, protegendo a transmissão de dados sensíveis.4
+
+6.3. O Papel do Firewall e Backups
+
+A instalação de um Web Application Firewall (WAF) é uma das defesas mais eficazes, pois ele atua como uma barreira que bloqueia o tráfego malicioso antes que ele atinja o site.4 O WAF pode mitigar ataques como injeções, força bruta e DDoS, filtrando requisições suspeitas e protegendo a aplicação.
+Finalmente, uma estratégia de backup confiável é o plano de contingência definitivo em caso de falha de todas as outras defesas. Backups regulares, automatizados e armazenados em locais externos (offsite) garantem que o site possa ser restaurado rapidamente após um incidente de segurança, minimizando a perda de dados e o tempo de inatividade.5
+
+7. Conclusão: A Segurança como um Processo Contínuo
+
+O cenário de ameaças em plataformas WordPress é dinâmico e complexo, mas a defesa não exige soluções mirabolantes. A segurança é uma disciplina contínua que exige atenção, responsabilidade e um compromisso com as melhores práticas em todos os níveis. O cerne de uma estratégia de defesa robusta é a combinação de três pilares:
+Higiene e Manutenção: Manter o ecossistema do site, incluindo o núcleo do WordPress, temas e plugins, limpo e atualizado, além de remover componentes inativos que representam riscos desnecessários.
+Desenvolvimento Consciente: Seguir rigorosamente as regras de validação, saneamento e escapamento de dados, garantir um controle de acesso robusto com current_user_can() e permission_callback, e gerenciar segredos de forma segura, longe do código-fonte.
+Vigilância e Infraestrutura: Implementar medidas de endurecimento do servidor, utilizar um WAF para filtrar o tráfego malicioso e manter um plano de backup e restauração confiável para garantir a resiliência da plataforma.
+Construir e manter um site WordPress seguro vai além da instalação de um plugin. Exige uma mentalidade proativa e uma compreensão de que cada linha de código, cada configuração e cada decisão de manutenção contribuem para a segurança global da plataforma e a proteção dos dados dos usuários. O conhecimento e a aplicação desses princípios são a chave para se manter à frente em um ambiente de ameaças em constante evolução.
+Works cited
+O que é OWASP? As 10 principais vulnerabilidades e riscos da OWASP - F5, accessed September 14, 2025, https://www.f5.com/pt_br/glossary/owasp
+12 WordPress Security Vulnerabilities and How to Prevent Them - Fluent Forms, accessed September 14, 2025, https://fluentforms.com/wordpress-security-vulnerabilities-and-solution/
+10 WordPress Security Issues Threatening Your Site - WPZOOM, accessed September 14, 2025, https://www.wpzoom.com/blog/wordpress-security-issues/
+WordPress Security Checklist: Protect Against Hacks - WP Rocket, accessed September 14, 2025, https://wp-rocket.me/blog/wordpress-security-checklist/
+Your WordPress Data Exposure Risks - UpGuard, accessed September 14, 2025, https://www.upguard.com/blog/wordpress-risks
+Como Resolver Vazamentos em Sites WordPress: Guia Completo - CIDEB, accessed September 14, 2025, https://cideb.com.br/como-resolver-vazamentos-em-sites-wordpress-guia-completo/
+Understanding and Preventing WordPress XSS Attacks - WP Security Ninja, accessed September 14, 2025, https://wpsecurityninja.com/understanding-and-preventing-wordpress-xss-attacks/
+WordPress Security Checklist | Hostinger, accessed September 14, 2025, https://www.hostinger.com/tutorials/wp-content/uploads/sites/2/2022/01/WordPress-Security-Checklist.pdf
+2025 WordPress Security Checklist To Keep Your Site Safe - NitroPack, accessed September 14, 2025, https://nitropack.io/blog/post/wordpress-security-checklist
+WordPress Security | WordPress on Pantheon Quick Start Guide, accessed September 14, 2025, https://docs.pantheon.io/guides/wordpress-pantheon/wp-security
+Most Common WordPress Vulnerabilities & How to Fix Them - Patchstack, accessed September 14, 2025, https://patchstack.com/articles/common-plugin-vulnerabilities-how-to-fix-them/
+Cross Site Scripting (XSS) - OWASP Foundation, accessed September 14, 2025, https://owasp.org/www-community/attacks/xss/
+Protect against WordPress XSS Attacks: A Complete Guide - MalCare, accessed September 14, 2025, https://www.malcare.com/blog/wordpress-xss/
+WordPress REST API Guide: Best Practices & Key Concepts - rtCamp, accessed September 14, 2025, https://rtcamp.com/handbook/developing-for-block-editor-and-site-editor/rest-api-overview/
+The Ultimate Guide to WordPress User Roles and Capabilities - Kinsta, accessed September 14, 2025, https://kinsta.com/blog/wordpress-user-roles/
+The 2025 WordPress Security Checklist: 16 Items to Tackle - Melapress, accessed September 14, 2025, https://melapress.com/wordpress-security-checklist/
+Designing a system: WordPress REST API endpoints | The Man in the Arena, accessed September 14, 2025, https://carlalexander.ca/designing-system-wordpress-rest-api-endpoints/
+Data Validation and Sanitization in WordPress - GP Web Developer, accessed September 14, 2025, https://gp-web.dev/2021/03/25/data-validation-and-sanitization-in-wordpress/
+Data Validation and Sanitization in WordPress - DEV Community, accessed September 14, 2025, https://dev.to/gp-webdev/data-validation-and-sanitization-in-wordpress-3on9
+Validating, sanitizing, and escaping · WordPress VIP Documentation, accessed September 14, 2025, https://docs.wpvip.com/security/validating-sanitizing-and-escaping/
+Sanitizing, Escaping and Validating Data in WordPress — SitePoint, accessed September 14, 2025, https://www.sitepoint.com/sanitizing-escaping-validating-data-in-wordpress/
+Secrets Management in WordPress | WordPress Developer's Guide - Pantheon Docs, accessed September 14, 2025, https://docs.pantheon.io/guides/wordpress-developer/wordpress-secrets-management
+How to Store API Keys Securely - Strapi, accessed September 14, 2025, https://strapi.io/blog/how-to-store-API-keys-securely
+wp_set_current_user() – Changes the current user by ID or name., accessed September 14, 2025, https://wp-kama.com/function/wp_set_current_user
+HMAC vs. RSA vs. ECDSA: Which algorithm should you use to sign JWTs? - WorkOS, accessed September 14, 2025, https://workos.com/blog/hmac-vs-rsa-vs-ecdsa-which-algorithm-should-you-use-to-sign-jwts
+How do I "sign" a JWT using HMAC-SHA256 with a public key (RSA or EC) in order to trigger algorithm confusion? - Stack Overflow, accessed September 14, 2025, https://stackoverflow.com/questions/79695854/how-do-i-sign-a-jwt-using-hmac-sha256-with-a-public-key-rsa-or-ec-in-order-t
+Best practices for server-side handling of JWT tokens [closed] - Stack Overflow, accessed September 14, 2025, https://stackoverflow.com/questions/30523238/best-practices-for-server-side-handling-of-jwt-tokens
+JWT storage 101: How to keep your tokens secure - WorkOS, accessed September 14, 2025, https://workos.com/blog/secure-jwt-storage
+JWT Authentication for WordPress REST API | Token Management Dashboard, accessed September 14, 2025, https://jwtauth.pro/
+How to safely store & process secret key for JWT - Stack Overflow, accessed September 14, 2025, https://stackoverflow.com/questions/37972285/how-to-safely-store-process-secret-key-for-jwt
